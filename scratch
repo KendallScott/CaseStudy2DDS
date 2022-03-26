@@ -1,0 +1,35 @@
+---
+title: "Case Study 2"
+author: "Kendall"
+date: "3/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+
+casestudy2 = read.csv(".//CaseStudy2-data.csv") #casestudy2-data.csv
+casestudy2.noattrition = read.csv(".//CaseStudy2CompSet No Attrition.csv")
+casestudy2.nosalary = read.csv(".//CaseStudy2CompSet No Salary.csv")
+
+casestudy2 %>% ggplot(aes(x = Department, y = Attrition)) + geom_point() + facet_wrap(~Department) + ggtitle("Age v. Measurement v. Condition")
+avgyears<-mean(casestudy2$YearsInCurrentRole)
+
+casestudy2 %>% ggplot(aes(x = Age, y = YearsInCurrentRole, color = Attrition)) + geom_point()+ggtitle("Years in Current Role v. Age v. Attrition")
+
+casestudy2 %>% ggplot(aes(x = Department, y = YearsInCurrentRole, color = Attrition)) + geom_point()+ggtitle("Years in Current Role v. Department v. Attrition")
+
+#attrition, department, years in current role
+bb<-casestudy2 %>% group_by(Department, Attrition) %>% summarize(YearsInCurrentRole = median(YearsInCurrentRole), count = n()) %>% ggplot(aes(x = reorder(Department, -YearsInCurrentRole), y = YearsInCurrentRole, fill=Attrition)) + geom_col()
+
+bb 
+
+
+#attrition, JobRole, years in current role
+bb<-casestudy2 %>% group_by(JobRole, Attrition) %>% summarize( count = n()) %>% ggplot(aes(x = reorder(JobRole, -count), y = count, fill=Attrition)) + geom_col()+theme(axis.text = element_text(size = 6))
+
+bb 
+
+```
