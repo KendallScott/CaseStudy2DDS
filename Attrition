@@ -53,5 +53,6 @@ pred <- predict(model, clean_casestudy2[ind == 2,])
 CM = confusionMatrix(table(observed = clean_casestudy2[ind==2, "Attrition"], predicted = pred))
 CM
 importance(model)
+#The mean decrease in Gini coefficient is a measure of how each variable contributes to the homogeneity of the nodes and leaves in the resulting random forest. The higher the value of mean decrease accuracy or mean decrease Gini score, the higher the importance of the variable in the model.
 varImpPlot(model)
 
