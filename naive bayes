@@ -1,0 +1,62 @@
+#Model for Sales Deparment
+clean_casestudy2 = data.frame(                              
+                              Attrition = casestudy2$Attrition,
+                              Department=casestudy2$Department,
+                              Age = scale(casestudy2$Age), 
+                              Marriage=casestudy2$MaritalStatus,
+                              JobRole = casestudy2$JobRole, 
+                              JobInvolvement=scale(casestudy2$JobInvolvement),
+                              JobLevel=casestudy2$JobLevel,
+                              Distance=scale(casestudy2$DistanceFromHome),
+                              BusinessTravel = casestudy2$BusinessTravel, 
+                              StockOptionLevel=scale(casestudy2$StockOptionLevel),
+                              EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
+                              RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
+                              JobSatisfaction=scale(casestudy2$JobSatisfaction),
+                              OverTime=casestudy2$OverTime,
+                              YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
+                              YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
+                              Education=scale(casestudy2$Education),
+                              Education=casestudy2$EducationField,
+                              TotalWorkingYears=scale(casestudy2$TotalWorkingYears)
+                              )
+#clean_casestudy2$Satisfaction<-colMeans(clean_casestudy2[ , c(clean_casestudy2$EnvironmentSatisfaction, clean_casestudy2$RelationshipSatisfaction, clean_casestudy2$JobSatisfaction)])
+
+Sales<-clean_casestudy2%>% filter(Department == "Sales") 
+salescol<-(ncol(clean_casestudy2))
+
+Sales=clean_casestudy2[,c(1:salescol)]
+#Sales=Sales %>% dplyr::select(Department,Age, Marriage, JobRole, JobInvolvement, JobLevel, StockOptionLevel, Distance, BusinessTravel, EnvironmentSatisfaction, OverTime, Attrition) 
+library(caret)
+salescol<-(ncol(Sales))
+
+model = naiveBayes(Attrition~.,data = Sales)
+predict(model,Sales[,c(3:salescol)])
+
+iterations = 100
+set.seed(1)
+masterAcc = matrix(nrow = iterations)
+masterSens = matrix(nrow = iterations)
+masterSpec = matrix(nrow = iterations)
+
+splitPerc = .7 #Training / Test split Percentage
+i=200
+for(j in 1:iterations)
+{
+  set.seed(i)
+  trainIndices = sample(seq(1:length(Sales$Attrition)),round(.7*length(Sales$Attrition)))
+  train = Sales[trainIndices,]
+  test = Sales[-trainIndices,]
+  
+  model = naiveBayes(train[,c(3:salescol)],as.factor(train$Attrition))
+  table(predict(model,test[,c(3:salescol)]),as.factor(test$Attrition))
+  CM = confusionMatrix(table(predict(model,test[,c(3:salescol)]),as.factor(test$Attrition)))
+  CM
+  masterAcc[j] = CM$overall[1]
+  masterSens[j]=CM[["byClass"]][["Sensitivity"]][1]
+  masterSpec[j]=CM[["byClass"]][["Specificity"]][1]
+  i=i+1
+}
+Overall=cbind(masterAcc,masterSens, masterSpec)
+MeanAcc = colMeans(Overall)
+MeanAcc
