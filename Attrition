@@ -44,3 +44,14 @@ model = naiveBayes(train[,c(2:clean_casestudy2col)],train$Attrition)
 table(predict(model,test[,c(1:(clean_casestudy2col+1),test$Attrition))
 CM = confusionMatrix(table(predict(model,test[,c(2:clean_casestudy2col)]),test$Attrition))
 CM
+#couldn't get above .5 for specificity, so will leverage a different model
+#random forest gets above a .6 for specificity
+
+library(randomForest)
+model <- randomForest(Attrition ~  ., data = clean_casestudy2[ind == 1,], importance=TRUE) 
+pred <- predict(model, clean_casestudy2[ind == 2,])
+CM = confusionMatrix(table(observed = clean_casestudy2[ind==2, "Attrition"], predicted = pred))
+CM
+importance(model)
+varImpPlot(model)
+
