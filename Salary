@@ -1,0 +1,40 @@
+#10% of your grade will depend on the RMSE (Root Mean square error) of your final model.  
+#You must provide a model that will attain a RMSE < $3000 for the training and the validation set.  
+#You are predicting salaries.
+library(class)
+library(caret)
+casestudy2 = read.csv(file.choose(),header = TRUE)
+
+clean_casestudy2 = data.frame(         
+  MonthlyIncome=casestudy2$MonthlyIncome,
+  Age = scale(casestudy2$Age), 
+  JobInvolvement=scale(casestudy2$JobInvolvement),
+  JobLevel=casestudy2$JobLevel,
+  Distance=scale(casestudy2$DistanceFromHome),
+  StockOptionLevel=scale(casestudy2$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2$JobSatisfaction),
+  YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
+  Education=scale(casestudy2$Education)
+)
+
+#linear regression
+#model 1
+#specify the cross-validation method
+ctrl <- trainControl(method = "LOOCV")
+
+fit =lm(formula = MonthlyIncome~  JobLevel+YearsinCurrentRole, clean_casestudy2)
+#fit a regression model and use LOOCV to evaluate performance
+model <- train(MonthlyIncome~  JobLevel+YearsinCurrentRole, data = clean_casestudy2, method = "lm", trControl = ctrl)
+
+summary(fit)
+
+preds = predict(fit)
+preds
+#graph predictions
+clean_casestudy2 %>% ggplot(aes(x = MonthlyIncome, y = YearsinCurrentRole)) + geom_point() +geom_line(data = clean_casestudy2, aes( x = preds, y = YearsinCurrentRole, col = "red"))+facet_grid(rows = vars(JobLevel))
+
+#histogram of residuals
+hist(fit$residuals, col = "blue", main = "Histogram of Residuals")
