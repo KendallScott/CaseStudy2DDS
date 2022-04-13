@@ -1,58 +1,58 @@
-#Naive Bayes Model
-clean_casestudy2 = data.frame(                              
-  Attrition = as.factor(casestudy2$Attrition),
-  Department=as.factor(casestudy2$Department),
+library(class)
+library(caret)
+
+clean_casestudy2 = data.frame(         
+  Attrition=casestudy2$Attrition,
   Age = scale(casestudy2$Age), 
-  Marriage=as.factor(casestudy2$MaritalStatus),
-  JobRole = as.factor(casestudy2$JobRole), 
   JobInvolvement=scale(casestudy2$JobInvolvement),
   JobLevel=scale(casestudy2$JobLevel),
   Distance=scale(casestudy2$DistanceFromHome),
-  BusinessTravel = as.factor(casestudy2$BusinessTravel), 
   StockOptionLevel=scale(casestudy2$StockOptionLevel),
   EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
   RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
   JobSatisfaction=scale(casestudy2$JobSatisfaction),
-  OverTime=as.factor(casestudy2$OverTime),
   YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
   YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
   Education=scale(casestudy2$Education),
-  EducationField=as.factor(casestudy2$EducationField),
   TotalWorkingYears=scale(casestudy2$TotalWorkingYears)
-)
+  
+splitPerc = .65 #Training / Test split Percentage
 
+#confusion matrix results for each row
+masterAcc = matrix(nrow = numks)
 
-clean_casestudy2 %>% select(c(Attrition, Department, Age, Marriage, JobRole, JobInvolvement, JobLevel, Distance, BusinessTravel, StockOptionLevel, EnvironmentSatisfaction, RelationshipSatisfaction, JobSatisfaction, OverTime, YearSinceLastPromotion, YearsinCurrentRole, Education,TotalWorkingYears, EducationField))
-#pulling 100% of Attrition for training data
-casestudy2.yesattrition =clean_casestudy2%>% filter(Attrition == "Yes" )
-#pulling a portion of No attrition for training data
-casestudy2.noattrition=clean_casestudy2%>% filter(Attrition == "No" )
-trainIndices = sample(seq(1:length(casestudy2.noattrition$Attrition)),round(.3*length(casestudy2.noattrition$Attrition)))
+masterSens = matrix(nrow = numks)
+masterSpec = matrix(nrow = numks)
 
-train = casestudy2.noattrition[trainIndices,]
-#combining the tables for the weighted training dataset-- with all of the Yes Attrition included
-train=rbind(train, casestudy2.yesattrition)
-#removing the column for attrition
-test=clean_casestudy2 %>% select(c( Department, Age, Marriage, JobRole, JobInvolvement, JobLevel, Distance, BusinessTravel, StockOptionLevel, EnvironmentSatisfaction, RelationshipSatisfaction, JobSatisfaction, OverTime, YearSinceLastPromotion, YearsinCurrentRole, Education,TotalWorkingYears, EducationField))
+numks = 60
+set.seed(1)
+i=1
+for(i in 1:numks)
+{
+trainIndices = sample(1:dim(clean_casestudy2)[1],round(splitPerc * dim(clean_casestudy2)[1]))
+train = clean_casestudy2[trainIndices,]
+test = clean_casestudy2[-trainIndices,]
+classifications = knn(train[,c(2,13)],test[,c(2,13)],as.factor(train$Attrition), prob = TRUE, k = i)
+table(as.factor(test$Attrition),classifications)
+CM = confusionMatrix(table(as.factor(test$Attrition),classifications))
+#results for accuracty, sensitivity, and specificity
+masterAcc[i] = CM$overall[1]
+masterSens[i]=CM[["byClass"]][["Sensitivity"]][1]
+masterSpec[i]=CM[["byClass"]][["Specificity"]][1]
+}
+Overall=cbind(masterAcc,masterSens, masterSpec)
+Overall=as.data.frame(Overall)
+#renaming CM column results
+Overall=rename(Overall, masterAcc=V1, masterSens=V2, masterSpec=V3)
 
-clean_casestudy2col<-(ncol(clean_casestudy2))
-library(caret)
+MeanAcc = colMeans(Overall)
+MeanAcc
+#based on results-- k=14 is the best selection
 
-predict(model,Sales[,c(2:clean_casestudy2col)])
-set.seed=(1)
-model = naiveBayes(train[,c(2:clean_casestudy2col)],train$Attrition)
-table(predict(model,test[,c(1:(clean_casestudy2col+1),test$Attrition))
-CM = confusionMatrix(table(predict(model,test[,c(2:clean_casestudy2col)]),test$Attrition))
+trainIndices = sample(1:dim(clean_casestudy2)[1],round(splitPerc * dim(clean_casestudy2)[1]))
+train = clean_casestudy2[trainIndices,]
+test = clean_casestudy2[-trainIndices,]
+classifications = knn(train[,c(2,13)],test[,c(2,13)],as.factor(train$Attrition), prob = TRUE, k = 14)
+table(as.factor(test$Attrition),classifications)
+CM = confusionMatrix(table(as.factor(test$Attrition),classifications))
 CM
-#couldn't get above .5 for specificity, so will leverage a different model
-#random forest gets above a .6 for specificity
-
-library(randomForest)
-model <- randomForest(Attrition ~  ., data = clean_casestudy2[ind == 1,], importance=TRUE) 
-pred <- predict(model, clean_casestudy2[ind == 2,])
-CM = confusionMatrix(table(observed = clean_casestudy2[ind==2, "Attrition"], predicted = pred))
-CM
-importance(model)
-#The mean decrease in Gini coefficient is a measure of how each variable contributes to the homogeneity of the nodes and leaves in the resulting random forest. The higher the value of mean decrease accuracy or mean decrease Gini score, the higher the importance of the variable in the model.
-varImpPlot(model)
-
