@@ -1,9 +1,11 @@
 library(class)
 library(caret)
+casestudy2.noattrition = read.csv(file.choose(),header = TRUE)
+casestudy2 = read.csv(file.choose(),header = TRUE)
 
-casestudy2 = read.csv(".//CaseStudy2-data.csv") #casestudy2-data.csv
 
 clean_casestudy2 = data.frame(         
+  EmployeeNumber=casestudy2$EmployeeNumber,
   Attrition=casestudy2$Attrition,
   Age = scale(casestudy2$Age), 
   JobInvolvement=scale(casestudy2$JobInvolvement),
@@ -16,45 +18,52 @@ clean_casestudy2 = data.frame(
   YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
   YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
   Education=scale(casestudy2$Education),
-  TotalWorkingYears=scale(casestudy2$TotalWorkingYears))
-  
-  splitPerc = .65 #Training / Test split Percentage
-  
-  #confusion matrix results for each row
-  masterAcc = matrix(nrow = numks)
-  
-  masterSens = matrix(nrow = numks)
-  masterSpec = matrix(nrow = numks)
-  
-  numks = 60
-  set.seed(1)
-  i=1
-  for(i in 1:numks)
-  {
-    trainIndices = sample(1:dim(clean_casestudy2)[1],round(splitPerc * dim(clean_casestudy2)[1]))
-    train = clean_casestudy2[trainIndices,]
-    test = clean_casestudy2[-trainIndices,]
-    classifications = knn(train[,c(2,13)],test[,c(2,13)],as.factor(train$Attrition), prob = TRUE, k = i)
-    table(as.factor(test$Attrition),classifications)
-    CM = confusionMatrix(table(as.factor(test$Attrition),classifications))
-    #results for accuracty, sensitivity, and specificity
-    masterAcc[i] = CM$overall[1]
-    masterSens[i]=CM[["byClass"]][["Sensitivity"]][1]
-    masterSpec[i]=CM[["byClass"]][["Specificity"]][1]
-  }
-  Overall=cbind(masterAcc,masterSens, masterSpec)
-  Overall=as.data.frame(Overall)
-  #renaming CM column results
-  Overall=rename(Overall, masterAcc=V1, masterSens=V2, masterSpec=V3)
-  
-  MeanAcc = colMeans(Overall)
-  MeanAcc
-  #based on results-- k=14 is the best selection
-  
-  trainIndices = sample(1:dim(clean_casestudy2)[1],round(splitPerc * dim(clean_casestudy2)[1]))
-  train = clean_casestudy2[trainIndices,]
-  test = clean_casestudy2[-trainIndices,]
-  classifications = knn(train[,c(2,13)],test[,c(2,13)],as.factor(train$Attrition), prob = TRUE, k = 14)
+  MonthlyIncome=scale(casestudy2$MonthlyIncome)
+)
+casestudy2.noatt= data.frame(    
+  EmployeeNumber=casestudy2.noattrition$EmployeeNumber,
+  Age = scale(casestudy2.noattrition$Age), 
+  JobInvolvement=scale(casestudy2.noattrition$JobInvolvement),
+  JobLevel=scale(casestudy2.noattrition$JobLevel),
+  Distance=scale(casestudy2.noattrition$DistanceFromHome),
+  StockOptionLevel=scale(casestudy2.noattrition$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2.noattrition$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2.noattrition$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2.noattrition$JobSatisfaction),
+  YearSinceLastPromotion=scale(casestudy2.noattrition$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2.noattrition$YearsInCurrentRole),
+  Education=scale(casestudy2.noattrition$Education),
+  MonthlyIncome=scale(casestudy2.noattrition$MonthlyIncome)
+)
+attr_join = data.frame(         
+  EmployeeNumber=clean_casestudy2$EmployeeNumber,
+  Attrition=clean_casestudy2$Attrition)
+library(dplyr)
+casestudy2.test= attr_join %>% inner_join(casestudy2.noatt,by="EmployeeNumber")
+
+#confusion matrix results for each row
+masterAcc = matrix(nrow = numks)
+masterSens = matrix(nrow = numks)
+masterSpec = matrix(nrow = numks)
+
+numks = 30
+set.seed(1)
+i=1
+for(i in 1:numks)
+{
+  classifications = knn(train[,c(3,14)],test[,c(3,14)],as.factor(train$Attrition), prob = TRUE, k = i)
   table(as.factor(test$Attrition),classifications)
   CM = confusionMatrix(table(as.factor(test$Attrition),classifications))
-  CM
+  #results for accuracty, sensitivity, and specificity
+  masterAcc[i] = CM$overall[1]
+  masterSens[i]=CM[["byClass"]][["Sensitivity"]][1]
+  masterSpec[i]=CM[["byClass"]][["Specificity"]][1]
+}
+Overall=cbind(masterAcc,masterSens, masterSpec)
+Overall=as.data.frame(Overall)
+#renaming CM column results
+Overall=rename(Overall, masterAcc=V1, masterSens=V2, masterSpec=V3)
+
+MeanAcc = colMeans(Overall)
+MeanAcc
+#based on results-- k=23 is the best selection
