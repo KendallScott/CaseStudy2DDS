@@ -1,6 +1,8 @@
 library(class)
 library(caret)
 
+casestudy2 = read.csv(".//CaseStudy2-data.csv") #casestudy2-data.csv
+
 clean_casestudy2 = data.frame(         
   Attrition=casestudy2$Attrition,
   Age = scale(casestudy2$Age), 
