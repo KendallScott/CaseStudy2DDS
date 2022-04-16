@@ -1,0 +1,237 @@
+---
+title: "Talent Management"
+subtitle: "Looking at data on 870 different employees for attrition and salary trends/predictions."
+author: "Kendall Scott"
+date: "4/16/2022"
+output:
+  html_document:
+    theme: united
+    highlight: tango
+---
+```{r}
+library(ggplot2)
+library(dplyr)
+library(viridis)
+library(stringr)
+
+casestudy2 = read.csv(".//CaseStudy2-data.csv") #casestudy2-data.csv
+
+#Attrition by Department
+ggplot(casestudy2, aes(x=as.factor(Department), fill=Attrition))+
+  geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="stack" , width=0.5) +
+  geom_text(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..], label=scales::percent(..count../tapply(..count.., ..x.. ,sum)[..x..]) ),
+            stat="count", position=position_stack(0.9), vjust=0.5)+
+  xlab('Department') +
+  ylab('Percent of Attrition')+
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))+
+  theme(axis.text = element_text(size = 7))
+
+casestudy2$Attritioncalc=case_when(
+  casestudy2$Attrition =='Yes'  ~ 1,
+   TRUE ~ 0
+)
+
+#summary
+er<-casestudy2 %>% group_by(Department) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
+er 
+
+ggplot() +
+  geom_bar( data=er, aes(x=Department, color=Employees, size=calcAttrition, alpha=0.5)) +
+    scale_size(range = c(1, 10), name="Attrition %")+
+    scale_color_viridis(option="viridis",  name="Employees" ) +
+  ggtitle("Attrition by Department")
+
+#Attrition % by Job Role and Department
+#summary table
+er<-casestudy2 %>% group_by(Department, JobRole) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
+er 
+#graph
+ggplot() +
+  geom_polygon(data =  er, aes(x=Department, y = JobRole),color = "white", fill="grey", alpha=0.5) +
+  geom_point( data=er, aes(x=Department, y=JobRole, color=Employees, size=calcAttrition, alpha=0.5)) +
+  scale_color_viridis(option="viridis",  name="Employees" ) +
+  scale_size(range = c(1, 10), name="Attrition %")+
+  ggtitle("Attrition by Role")
+
+#Attrition % by Job Level and Department
+#summary
+er<-casestudy2 %>% group_by(Department, JobLevel) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
+er 
+
+#graph
+ggplot() +
+  geom_point( data=er, aes(x=Department, y=JobLevel, color=Employees, size=calcAttrition,  alpha=0.5)) +
+  scale_color_viridis(option="viridis",  name="Employees" ) +
+  scale_size(range = c(1, 10), name="Attrition %")+
+  ggtitle("Attrition by Job Level")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+# k-NN or naive Bayes but may also use other models (logistic regression, random forest, LDA, SVM, etc) 
+#as long as you compare the results between the two or more models. 
+#You may then use any of the models to fulfill the 60/60 sensitivity/specificity requirement. 
+#This goes for regression as well; you must use linear regression but may include additional models for comparison and use in the competition (LASSO, random forest, ensemble models, etc.).
+casestudy2.noattrition = read.csv(".//CaseStudy2CompSet No Salary.csv")
+
+library(class)
+library(caret)
+library(e1071)
+
+clean_casestudy2 = data.frame(   
+  Attrition=casestudy2$Attrition,
+  Age = scale(casestudy2$Age), 
+  JobInvolvement=scale(casestudy2$JobInvolvement),
+  JobLevel=scale(casestudy2$JobLevel),
+  Distance=scale(casestudy2$DistanceFromHome),
+  StockOptionLevel=scale(casestudy2$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2$JobSatisfaction),
+  YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
+  Education=scale(casestudy2$Education)
+)
+casestudy2.noatt= data.frame(    
+  Attrition=casestudy2.noattrition$Attrition,
+  Age = scale(casestudy2.noattrition$Age), 
+  JobInvolvement=scale(casestudy2.noattrition$JobInvolvement),
+  JobLevel=scale(casestudy2.noattrition$JobLevel),
+  Distance=scale(casestudy2.noattrition$DistanceFromHome),
+  StockOptionLevel=scale(casestudy2.noattrition$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2.noattrition$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2.noattrition$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2.noattrition$JobSatisfaction),
+  YearSinceLastPromotion=scale(casestudy2.noattrition$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2.noattrition$YearsInCurrentRole),
+  Education=scale(casestudy2.noattrition$Education))
+      
+test= casestudy2.noatt
+train=clean_casestudy2
+
+#confusion matrix results for each row
+numks = 30
+
+masterAcc = matrix(nrow = numks)
+masterSens = matrix(nrow = numks)
+masterSpec = matrix(nrow = numks)
+masterK = matrix(nrow = numks)
+
+data(attrition)
+set.seed(1)
+i=1
+for(i in 1:numks)
+{
+ classifications = knn(train[,c(2:12)],test[,c(2:12)],as.factor(train$Attrition), prob = TRUE, k = i)
+  #results for accuracty, sensitivity, and specificity
+  table(as.factor(test$Attrition),classifications)
+  CM = confusionMatrix(table(as.factor(test$Attrition),classifications))
+  masterAcc[i] = CM$overall[1]
+  masterSens[i]=CM[["byClass"]][["Sensitivity"]][1]
+  masterSpec[i]=CM[["byClass"]][["Specificity"]][1]
+  masterK[i]=i
+}
+Overall=cbind(masterAcc,masterSens, masterSpec, masterK)
+Overall=as.data.frame(Overall)
+#renaming CM column results
+Overall=rename(Overall, Accuracy=V1, Sensitivity=V2, Specificity=V3,K=V4)
+
+MeanAcc = colMeans(Overall)
+MeanAcc
+
+library("tidyverse")
+df <- Overall %>%
+  select(K, Accuracy, Sensitivity, Specificity) %>%
+  gather(key = "variable", value = "value", -K)
+
+#graph of knn results
+ggplot(df, aes(x = K, y = value)) + 
+  geom_line(aes(color = variable, linetype = variable)) + 
+  scale_color_manual(values = c("black", "steelblue", "blue"))+ geom_vline(xintercept=16,color="darkgreen")+ ylab('Confusion Matrix Measurments')+ggtitle("KNN Results")
+#based on results-- k=16 is the best selection
+
+casestudy2.noattrition = read.csv(".//CaseStudy2CompSet No Attrition.csv")
+casestudy2.noattrition$Attrition= classifications = knn(train[,c(2:12)],test[,c(2:12)],as.factor(train$Attrition), prob = TRUE, k = 16)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r echo=FALSE}
+#Monthly Income
+#linear regression
+#specify the cross-validation method
+clean_casestudy2 = data.frame(   
+  Attrition=casestudy2$Attrition,
+  Age = scale(casestudy2$Age), 
+  JobInvolvement=scale(casestudy2$JobInvolvement),
+  JobLevel=scale(casestudy2$JobLevel),
+  Distance=scale(casestudy2$DistanceFromHome),
+  StockOptionLevel=scale(casestudy2$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2$JobSatisfaction),
+  YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
+  Education=scale(casestudy2$Education),
+  MonthlyIncome=casestudy2$MonthlyIncome
+)
+
+ctrl <- trainControl(method = "LOOCV")
+
+fit =lm(formula = MonthlyIncome~  JobLevel+YearsinCurrentRole, clean_casestudy2)
+#fit a regression model and use LOOCV to evaluate performance
+model <- train(MonthlyIncome~  JobLevel+YearsinCurrentRole, data = clean_casestudy2, method = "lm", trControl = ctrl)
+
+summary(fit)
+
+preds = predict(fit)
+preds
+clean_casestudy2 %>% ggplot(aes(x = MonthlyIncome, y = YearsinCurrentRole)) + geom_point() +geom_line(data = clean_casestudy2, aes( x = preds, y = YearsinCurrentRole, col = "red"))+facet_grid(rows = vars(JobLevel))
+
+hist(fit$residuals, col = "blue", main = "Histogram of Residuals")
+
+#mlr and 3d plotting
+library(plotly)
+library(reshape2)
+
+fit =lm(formula = MonthlyIncome~  JobLevel+YearsinCurrentRole, clean_casestudy2)
+summary(fit)
+
+preds = predict(fit)
+clean_casestudy2$predIncome = preds
+
+#plot the regression plane
+#Graph Resolution 
+graph_reso <- .5
+
+#Setup Axis
+axis_x <- seq(min(clean_casestudy2$JobLevel), max(clean_casestudy2$JobLevel), length = 100)
+axis_y <- seq(min(clean_casestudy2$YearsinCurrentRole), max(clean_casestudy2$YearsinCurrentRole), length = 100)
+
+#Sample points
+surface_inc <- expand.grid(JobLevel = axis_y,YearsinCurrentRole = axis_x,KEEP.OUT.ATTRS = F)
+surface_inc$Income <- predict.lm(fit, newdata = surface_inc)
+surface_inc <- acast(surface_inc, JobLevel ~ YearsinCurrentRole, value.var = "Income") #y ~ x
+
+surface_plot <- plot_ly(clean_casestudy2, 
+                        x = ~JobLevel, 
+                        y = ~YearsinCurrentRole, 
+                        z = ~MonthlyIncome,
+                        text = "Income", 
+                        type = "scatter3d",
+                        mode = "contours")
+
+
+surface_plot <- add_trace(p = surface_plot,
+                          z = surface_inc,
+                          x = axis_x,
+                          y = axis_y,
+                          type = "surface",
+                          mode = "contours")
+
+surface_plot
+```
