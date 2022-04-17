@@ -35,12 +35,6 @@ casestudy2$Attritioncalc=case_when(
 er<-casestudy2 %>% group_by(Department) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
 er 
 
-ggplot() +
-  geom_bar( data=er, aes(x=Department, color=Employees, size=calcAttrition, alpha=0.5)) +
-    scale_size(range = c(1, 10), name="Attrition %")+
-    scale_color_viridis(option="viridis",  name="Employees" ) +
-  ggtitle("Attrition by Department")
-
 #Attrition % by Job Role and Department
 #summary table
 er<-casestudy2 %>% group_by(Department, JobRole) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
@@ -64,11 +58,34 @@ ggplot() +
   scale_color_viridis(option="viridis",  name="Employees" ) +
   scale_size(range = c(1, 10), name="Attrition %")+
   ggtitle("Attrition by Job Level")
+#summary
+er<-casestudy2 %>% group_by(Department, JobLevel) %>% summarize(meanincome = mean(MonthlyIncome), calcAttrition = (sum(Attritioncalc)/n()), Employees = n()) %>% arrange(desc(Employees))
+er 
+
+#graph
+ggplot() +
+  geom_point( data=er, aes(x=Department, y=JobLevel, color=Employees, size=calcAttrition,  alpha=0.5)) +
+  scale_color_viridis(option="viridis",  name="Employees" ) +
+  scale_size(range = c(1, 10), name="Attrition %")+
+  ggtitle("Attrition by Job Level")
 ```
+### By Department
+##### The Sales Department has the highest % of Attrition (21.6%)
+##### 54% of Attrition comes from Research and Development, but Research and Development is the largest Department.
 
-## Including Plots
+### By Job Level
+##### Overall Job Level 1 has the highest % of Attrition
+##### Within the Sales Department– JobLevel 5 has higher attrition % (29%) than Job Level 1 in other departments.
 
-You can also embed plots, for example:
+### By Job Role
+
+#### 68% of attrition is from 3 Job Roles:
+#### -Sales Executive (Sales)
+#### -Research Scientist (Research & Development)
+#### -Laboratory Technician (Research & Development)
+
+
+
 
 ```{r}
 # k-NN or naive Bayes but may also use other models (logistic regression, random forest, LDA, SVM, etc) 
@@ -158,68 +175,68 @@ casestudy2.noattrition$Attrition= classifications = knn(train[,c(2:12)],test[,c(
 
 
 ```
+### Attrition
+#### Looking at the 16 closest employees (k=16) produces best results
+#### Model accuracy 83.3%
+#### Specificity 83.7%
+#### Sensitivity  60.0%
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### Factors for the model were:
+#### -Age
+#### -Job Involvement
+#### -Job Level
+#### -Distance
+#### -Stock Option Level
+#### -Environment Satisfaction
+#### -Relationship Satisfaction
+#### -Job Satisfaction
+#### -Year Since Last Promotion
+#### -Years in Current Role
+#### -Education
+
 ```{r echo=FALSE}
 #Monthly Income
 #linear regression
-#specify the cross-validation method
-clean_casestudy2 = data.frame(   
-  Attrition=casestudy2$Attrition,
-  Age = scale(casestudy2$Age), 
-  JobInvolvement=scale(casestudy2$JobInvolvement),
-  JobLevel=scale(casestudy2$JobLevel),
-  Distance=scale(casestudy2$DistanceFromHome),
-  StockOptionLevel=scale(casestudy2$StockOptionLevel),
-  EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
-  RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
-  JobSatisfaction=scale(casestudy2$JobSatisfaction),
-  YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
-  YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
-  Education=scale(casestudy2$Education),
-  MonthlyIncome=casestudy2$MonthlyIncome
-)
 
-ctrl <- trainControl(method = "LOOCV")
-
-fit =lm(formula = MonthlyIncome~  JobLevel+YearsinCurrentRole, clean_casestudy2)
+fit =lm(formula = MonthlyIncome~  JobLevel+YearsInCurrentRole, casestudy2)
 #fit a regression model and use LOOCV to evaluate performance
-model <- train(MonthlyIncome~  JobLevel+YearsinCurrentRole, data = clean_casestudy2, method = "lm", trControl = ctrl)
 
 summary(fit)
-
+confint(fit)
 preds = predict(fit)
-preds
-clean_casestudy2 %>% ggplot(aes(x = MonthlyIncome, y = YearsinCurrentRole)) + geom_point() +geom_line(data = clean_casestudy2, aes( x = preds, y = YearsinCurrentRole, col = "red"))+facet_grid(rows = vars(JobLevel))
+RMSE=sqrt(mean(fit$residuals^2))
+casestudy2$preds = predict(fit)
 
+er<-casestudy2 %>% group_by(JobLevel, YearsInCurrentRole) %>% summarize(MeanIncome = mean(MonthlyIncome), meanPred = mean(preds))
+
+#Pred vs. Mean Income
+er %>% ggplot(aes(x = YearsInCurrentRole, y = MeanIncome)) + geom_point() +geom_line(data = er, aes( x = YearsInCurrentRole, y = meanPred, col = "red"))+facet_grid(rows = vars(JobLevel))
+
+casestudy2.nosal= read.csv(".//CaseStudy2CompSet No Salary.csv")
+casestudy2.nosal$MonthlyPred=predict(fit, newdata = casestudy2.nosal)
 hist(fit$residuals, col = "blue", main = "Histogram of Residuals")
 
 #mlr and 3d plotting
 library(plotly)
 library(reshape2)
 
-fit =lm(formula = MonthlyIncome~  JobLevel+YearsinCurrentRole, clean_casestudy2)
-summary(fit)
-
-preds = predict(fit)
-clean_casestudy2$predIncome = preds
-
 #plot the regression plane
 #Graph Resolution 
 graph_reso <- .5
 
 #Setup Axis
-axis_x <- seq(min(clean_casestudy2$JobLevel), max(clean_casestudy2$JobLevel), length = 100)
-axis_y <- seq(min(clean_casestudy2$YearsinCurrentRole), max(clean_casestudy2$YearsinCurrentRole), length = 100)
+axis_x <- seq(min(casestudy2$JobLevel), max(casestudy2$JobLevel), length = 100)
+axis_y <- seq(min(casestudy2$YearsInCurrentRole), max(casestudy2$YearsInCurrentRole), length = 100)
 
 #Sample points
-surface_inc <- expand.grid(JobLevel = axis_y,YearsinCurrentRole = axis_x,KEEP.OUT.ATTRS = F)
+surface_inc <- expand.grid(JobLevel = axis_y,YearsInCurrentRole = axis_x,KEEP.OUT.ATTRS = F)
 surface_inc$Income <- predict.lm(fit, newdata = surface_inc)
-surface_inc <- acast(surface_inc, JobLevel ~ YearsinCurrentRole, value.var = "Income") #y ~ x
+surface_inc <- acast(surface_inc, JobLevel ~ YearsInCurrentRole, value.var = "Income") #y ~ x
 
-surface_plot <- plot_ly(clean_casestudy2, 
+surface_plot <- plot_ly(casestudy2, 
                         x = ~JobLevel, 
-                        y = ~YearsinCurrentRole, 
+                        y = ~YearsInCurrentRole, 
                         z = ~MonthlyIncome,
                         text = "Income", 
                         type = "scatter3d",
@@ -234,4 +251,52 @@ surface_plot <- add_trace(p = surface_plot,
                           mode = "contours")
 
 surface_plot
+
+#Random Forest
+library(randomForest)
+library(varImp)
+
+clean_casestudy2 = data.frame(   
+  MonthlyIncome=casestudy2$MonthlyIncome,
+  Gender=as.factor(casestudy2$Gender),
+  TrainingTimesLastYear=scale(casestudy2$TrainingTimesLastYear),
+  Attrition = as.factor(casestudy2$Attrition),
+  Department=as.factor(casestudy2$Department),
+  Age = scale(casestudy2$Age), 
+  Marriage=as.factor(casestudy2$MaritalStatus),
+  JobRole = as.factor(casestudy2$JobRole), 
+  JobInvolvement=scale(casestudy2$JobInvolvement),
+  JobLevel=scale(casestudy2$JobLevel),
+  Distance=scale(casestudy2$DistanceFromHome),
+  BusinessTravel = as.factor(casestudy2$BusinessTravel), 
+  StockOptionLevel=scale(casestudy2$StockOptionLevel),
+  EnvironmentSatisfaction=scale(casestudy2$EnvironmentSatisfaction),
+  RelationshipSatisfaction=scale(casestudy2$RelationshipSatisfaction),
+  JobSatisfaction=scale(casestudy2$JobSatisfaction),
+  OverTime=as.factor(casestudy2$OverTime),
+  YearSinceLastPromotion=scale(casestudy2$YearsSinceLastPromotion),
+  YearsinCurrentRole=scale(casestudy2$YearsInCurrentRole),
+  Education=scale(casestudy2$Education),
+  EducationField=as.factor(casestudy2$EducationField),
+  TotalWorkingYears=scale(casestudy2$TotalWorkingYears)
+)
+model <- randomForest(MonthlyIncome ~  ., data = clean_casestudy2, importance=TRUE) 
+importance=importance(model)
+varImpPlot(model)
+
+
 ```
+
+### Monthly Income
+### Used linear regression to predict monthly incoming using:
+#### -Job Level
+#### -Years in Current Role
+
+### RMSE(root mean squared error) of $1,413
+
+### Attrition Factors
+#### Overall the most important factors for Attrition leveraging Random Forest:
+#### -Job Level
+#### -Job Role
+#### -Years in Current Role
+
